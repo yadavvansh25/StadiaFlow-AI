@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import AccessibilityToggle from '@/components/AccessibilityToggle';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+const WS_URL = BACKEND_URL.replace(/^http/, 'ws');
+
 // Types
 interface CrowdAlert {
   location: string;
@@ -56,7 +59,7 @@ export default function Home() {
   // Connect to Backend WebSocket with auto-reconnect
   const connectWebSocket = useCallback(() => {
     const clientId = Math.random().toString(36).substring(7);
-    const socket = new WebSocket(`ws://localhost:8000/ws/${clientId}?zone=stadium_main`);
+    const socket = new WebSocket(`${WS_URL}/ws/${clientId}?zone=stadium_main`);
     
     socket.onopen = () => {
       setIsConnected(true);
@@ -145,7 +148,7 @@ export default function Home() {
   const handleJITOrder = async (itemName: string, stand: string) => {
     setOrderStatus(`⏳ Triggering order for ${itemName}...`);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/jit-concessions/order', {
+      const response = await fetch(`${BACKEND_URL}/api/v1/jit-concessions/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
