@@ -9,8 +9,11 @@ interface AccessibilityToggleProps {
 
 export default function AccessibilityToggle({ enabled, onToggle }: AccessibilityToggleProps) {
   return (
-    <div 
-      className={`glass-panel p-6 flex flex-row items-center justify-between cursor-pointer transition-all duration-300 ${enabled ? 'bg-gradient-to-r from-blue-900/50 to-emerald-900/50 ring-2 ring-emerald-400' : 'opacity-80 hover:opacity-100'}`}
+    <button 
+      role="switch"
+      aria-checked={enabled}
+      aria-label="Toggle Accessibility Mode"
+      className={`w-full text-left glass-panel p-6 flex flex-row items-center justify-between cursor-pointer transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${enabled ? 'bg-gradient-to-r from-blue-900/50 to-emerald-900/50 ring-2 ring-emerald-400' : 'opacity-80 hover:opacity-100'}`}
       onClick={() => onToggle(!enabled)}
     >
        <div>
@@ -29,6 +32,6 @@ export default function AccessibilityToggle({ enabled, onToggle }: Accessibility
            transition={{ type: "spring", stiffness: 500, damping: 30 }}
          />
        </div>
-    </div>
+    </button>
   );
 }

@@ -8,13 +8,26 @@ import random
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
-    def __init__(self):
+    """
+    Manages WebSocket connections and broadcasts real-time crowd density 
+    events and anomaly alerts to connected clients.
+    """
+    def __init__(self) -> None:
+        """Initialize the connection and zone state trackers."""
         # Maps user/device ID to WebSocket
         self.active_connections: Dict[str, WebSocket] = {}
         # Maps zones (e.g. "concourse_a") to a set of user IDs
         self.zones: Dict[str, Set[str]] = {}
 
-    async def connect(self, websocket: WebSocket, client_id: str, zone: str = "general"):
+    async def connect(self, websocket: WebSocket, client_id: str, zone: str = "general") -> None:
+        """
+        Accepts an incoming WebSocket connection and registers the client.
+        
+        Args:
+            websocket (WebSocket): The raw WebSocket connection.
+            client_id (str): Unique identifier for the connecting device.
+            zone (str): The stadium zone the client is located in.
+        """
         await websocket.accept()
         self.active_connections[client_id] = websocket
         if zone not in self.zones:
@@ -22,13 +35,17 @@ class ConnectionManager:
         self.zones[zone].add(client_id)
         logger.info(f"Client {client_id} connected to zone '{zone}'. Total connections: {len(self.active_connections)}")
         
-    def disconnect(self, client_id: str, zone: str = "general"):
+    def disconnect(self, client_id: str, zone: str = "general") -> None:
+        """
+        Removes a client from active tracking.
+        """
         if client_id in self.active_connections:
             del self.active_connections[client_id]
         if zone in self.zones and client_id in self.zones[zone]:
             self.zones[zone].remove(client_id)
 
-    async def send_personal_message(self, message: Any, client_id: str):
+    async def send_personal_message(self, message: Any, client_id: str) -> None:
+        """Directly sends a serialized JSON payload to a specific client."""
         if client_id in self.active_connections:
             websocket = self.active_connections[client_id]
             try:
@@ -36,7 +53,8 @@ class ConnectionManager:
             except Exception:
                 self.disconnect(client_id)
 
-    async def broadcast_to_zone(self, message: Any, zone: str):
+    async def broadcast_to_zone(self, message: Any, zone: str) -> None:
+        """Broadcasts a payload to all clients registered in a specific zone."""
         if zone in self.zones:
             disconnected = []
             tasks = []
@@ -52,7 +70,7 @@ class ConnectionManager:
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def broadcast_all(self, message: Any):
+    async def broadcast_all(self, message: Any) -> None:
         """Broadcast a message to ALL connected clients across ALL zones."""
         tasks = []
         for client_id, ws in list(self.active_connections.items()):
@@ -89,7 +107,8 @@ class ConnectionManager:
             # Broadcast to ALL connected clients regardless of zone
             await self.broadcast_all(payload)
 
-    def start_simulator(self):
+    def start_simulator(self) -> None:
+        """Activates the asynchronous engine loop."""
         asyncio.create_task(self._simulator_loop())
 
 manager = ConnectionManager()

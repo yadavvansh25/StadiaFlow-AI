@@ -7,19 +7,31 @@ import AccessibilityToggle from '@/components/AccessibilityToggle';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 const WS_URL = BACKEND_URL.replace(/^http/, 'ws');
 
-// Types
+// -----------------------------------------------------------------------------
+// Core Types & Interfaces
+// -----------------------------------------------------------------------------
+
+/**
+ * Represents a real-time event alert emitted from the crowd-density simulator.
+ */
 interface CrowdAlert {
   location: string;
   density: number;
   status: string;
 }
 
+/**
+ * Represents the wait-time/density status of a single restroom facility.
+ */
 interface RestroomData {
   name: string;
   traffic: string;
-  level: number; // 0-100
+  level: number; // 0-100% capacity
 }
 
+/**
+ * Basic mock schema for locating friends via Augmented Reality module.
+ */
 interface FriendLocation {
   name: string;
   sector: string;
@@ -27,6 +39,12 @@ interface FriendLocation {
   avatar: string;
 }
 
+/**
+ * Primary React Dashboard Application defining the root layout 
+ * and interactive state of the Living Stadium prototype.
+ * 
+ * @returns React Server Component
+ */
 export default function Home() {
   const [activeTab, setActiveTab] = useState('routing');
   const [isConnected, setIsConnected] = useState(false);
@@ -145,7 +163,14 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [anomalyAlert]);
 
-  const handleJITOrder = async (itemName: string, stand: string) => {
+  /**
+   * Dispatches JIT (Just-In-Time) ordering request to backend logic
+   * while handling UI status states dynamically.
+   * 
+   * @param itemName Name of the concession item
+   * @param stand ID mapping to the stand configuration
+   */
+  const handleJITOrder = useCallback(async (itemName: string, stand: string) => {
     setOrderStatus(`⏳ Triggering order for ${itemName}...`);
     try {
       const response = await fetch(`${BACKEND_URL}/api/v1/jit-concessions/order`, {
@@ -165,22 +190,30 @@ export default function Home() {
       setOrderStatus("⚠️ Backend offline — order simulated locally. Ready in ~3 mins.");
       setTimeout(() => setOrderStatus(null), 4000);
     }
-  };
+  }, []);
 
-  const getTrafficColor = (traffic: string) => {
+  /**
+   * Transforms numerical or qualitative traffic status into text Tailwind color utility.
+   * @param traffic 'High Traffic' | 'Moderate' | 'Low Traffic'
+   */
+  const getTrafficColor = useCallback((traffic: string) => {
     if (traffic === 'High Traffic') return 'text-red-400';
     if (traffic === 'Moderate') return 'text-yellow-500';
     return 'text-emerald-400';
-  };
+  }, []);
 
-  const getTrafficBarColor = (traffic: string) => {
+  /**
+   * Transforms qualitative traffic status into background Tailwind color utility.
+   * @param traffic 'High Traffic' | 'Moderate' | 'Low Traffic'
+   */
+  const getTrafficBarColor = useCallback((traffic: string) => {
     if (traffic === 'High Traffic') return 'bg-red-500';
     if (traffic === 'Moderate') return 'bg-yellow-500';
     return 'bg-emerald-500';
-  };
+  }, []);
 
   return (
-    <main className={`min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-6 lg:p-12 font-sans relative overflow-hidden transition-all duration-500 ${accessibilityMode ? 'text-lg' : ''}`}>
+    <main role="main" aria-label="StadiaFlow AI Central Dashboard" className={`min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-6 lg:p-12 font-sans relative overflow-hidden transition-all duration-500 ${accessibilityMode ? 'text-lg' : ''}`}>
       {/* Dynamic Background Effects */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className={`absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full animate-pulse-slow transition-colors duration-1000 ${anomalyAlert?.status === 'CRITICAL' ? 'bg-red-600/30' : 'bg-blue-600/30'}`}></div>
@@ -217,13 +250,18 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="md:col-span-2 glass-panel p-8"
+            role="region"
+            aria-label="Interactive Dashboard Panels"
           >
-            <div className="flex space-x-6 border-b border-white/10 mb-8 overflow-x-auto pb-4 custom-scrollbar">
+            <div className="flex space-x-6 border-b border-white/10 mb-8 overflow-x-auto pb-4 custom-scrollbar" role="tablist" aria-label="Dashboard Tabs">
               {['routing', 'concessions', 'ar-finder'].map((tab) => (
                 <button
                   key={tab}
                   id={`tab-${tab}`}
-                  className={`text-sm tracking-wider uppercase font-bold transition-all duration-300 whitespace-nowrap ${activeTab === tab ? 'text-emerald-400 border-b-2 border-emerald-400 pb-2' : 'text-slate-400 hover:text-slate-200'}`}
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  aria-controls={`panel-${tab}`}
+                  className={`text-sm tracking-wider uppercase font-bold transition-all duration-300 whitespace-nowrap focus:ring-2 focus:ring-emerald-400 focus:outline-none ${activeTab === tab ? 'text-emerald-400 border-b-2 border-emerald-400 pb-2' : 'text-slate-400 hover:text-slate-200'}`}
                   onClick={() => setActiveTab(tab)}
                 >
                   {tab === 'routing' ? '🧭 Routing' : tab === 'concessions' ? '🍔 Concessions' : '📍 AR Finder'}
@@ -236,6 +274,9 @@ export default function Home() {
                 {activeTab === 'routing' && (
                   <motion.div 
                     key="routing"
+                    id="panel-routing"
+                    role="tabpanel"
+                    aria-labelledby="tab-routing"
                     initial={{ opacity: 0, x: -20 }} 
                     animate={{ opacity: 1, x: 0 }} 
                     exit={{ opacity: 0, x: 20 }}
@@ -308,6 +349,9 @@ export default function Home() {
                 {activeTab === 'concessions' && (
                   <motion.div 
                     key="concessions"
+                    id="panel-concessions"
+                    role="tabpanel"
+                    aria-labelledby="tab-concessions"
                     initial={{ opacity: 0, x: -20 }} 
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
@@ -336,12 +380,13 @@ export default function Home() {
                         { name: 'Nachos Supreme', stand: 'S-108', standLabel: 'Stand 108', price: '₹320', icon: '🧀' },
                         { name: 'Coffee & Donut', stand: 'S-120', standLabel: 'Stand 120', price: '₹280', icon: '☕🍩' },
                       ].map((item) => (
-                        <motion.div 
+                        <motion.button 
                           key={item.stand}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => handleJITOrder(item.name, item.stand)} 
-                          className="glass-panel p-4 cursor-pointer hover:bg-white/5 transition-all outline-none focus:ring-2 ring-emerald-500 group"
+                          aria-label={`Order ${item.name} from ${item.standLabel}`}
+                          className="glass-panel text-left p-4 cursor-pointer hover:bg-white/5 transition-all outline-none focus:ring-2 ring-emerald-500 group w-full"
                         >
                           <div className="flex items-start justify-between">
                             <div>
@@ -350,7 +395,7 @@ export default function Home() {
                             </div>
                             <span className="text-sm font-bold text-slate-300">{item.price}</span>
                           </div>
-                        </motion.div>
+                        </motion.button>
                       ))}
                     </div>
                   </motion.div>
@@ -359,6 +404,9 @@ export default function Home() {
                 {activeTab === 'ar-finder' && (
                   <motion.div 
                     key="ar-finder"
+                    id="panel-ar-finder"
+                    role="tabpanel"
+                    aria-labelledby="tab-ar-finder"
                     initial={{ opacity: 0, x: -20 }} 
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
@@ -423,7 +471,8 @@ export default function Home() {
 
                         <button 
                           onClick={() => setArActive(false)}
-                          className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                          aria-label="Close AR Scanner"
+                          className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors focus:ring-2 focus:ring-blue-500 rounded-md outline-none"
                         >
                           ✕ Close Scanner
                         </button>
@@ -471,7 +520,17 @@ export default function Home() {
             <motion.div 
               whileHover={{ scale: 1.02 }}
               onClick={() => setShowQR(!showQR)}
-              className="glass-panel p-6 bg-gradient-to-br from-blue-900/40 to-black/60 relative overflow-hidden group cursor-pointer transition-transform duration-300"
+              role="button"
+              tabIndex={0}
+              aria-expanded={showQR}
+              aria-label="Toggle Google Wallet QR Code"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowQR(!showQR);
+                }
+              }}
+              className="glass-panel p-6 bg-gradient-to-br from-blue-900/40 to-black/60 relative overflow-hidden group cursor-pointer transition-transform duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <div className="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl group-hover:bg-blue-500/30 transition-all"></div>
               <h3 className="text-sm tracking-widest text-slate-300 font-bold mb-2 uppercase">🎫 Google Wallet</h3>
