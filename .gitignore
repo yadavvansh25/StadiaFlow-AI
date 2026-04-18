@@ -13,6 +13,15 @@ __pycache__/
 *.pyo
 .env
 
+# Coverage
+backend/.coverage
+backend/htmlcov/
+frontend/coverage/
+
+# Caches
+backend/.mypy_cache/
+backend/.pytest_cache/
+
 # Logs
 *.log
 frontend/build.log

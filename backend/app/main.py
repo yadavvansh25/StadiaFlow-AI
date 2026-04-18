@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -8,16 +8,14 @@ from app.api.endpoints import router as api_router
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limiter import limiter
-import uuid
+from contextlib import asynccontextmanager
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-
 # Use lifespan per modern FastAPI to start background tasks
-from contextlib import asynccontextmanager
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +25,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown tasks
     logger.info("Shutting down engine...")
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -38,12 +37,13 @@ app = FastAPI(
     },
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Attach rate limiter to app structure
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -58,7 +58,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:8000",
-    "https://stadiaflow-frontend-901391666143.asia-south1.run.app"
+    "https://stadiaflow-frontend-901391666143.asia-south1.run.app",
 ]
 
 app.add_middleware(
@@ -69,17 +69,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains"
+    )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     return response
 
+
 app.include_router(api_router, prefix="/api/v1")
+
 
 @app.get("/")
 @limiter.limit("20/minute")
@@ -90,6 +95,7 @@ async def root(request: Request):
     """
     return {"message": "Welcome to StadiaFlow AI Engine"}
 
+
 @app.get("/health")
 @limiter.limit("60/minute")
 async def health_check(request: Request):
@@ -99,8 +105,11 @@ async def health_check(request: Request):
     """
     return {"status": "healthy", "connections": len(manager.active_connections)}
 
+
 @app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str, zone: str = "general"):
+async def websocket_endpoint(
+    websocket: WebSocket, client_id: str, zone: str = "general"
+):
     """
     Primary real-time connection for Crowd-Aware Routing and Just-In-Time Concessions.
     100,000+ concurrency target.
@@ -111,12 +120,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, zone: str = "
             # Wait for any incoming messages from the client
             data = await websocket.receive_json()
             logger.info(f"Received data from {client_id} in {zone}: {data}")
-            
+
             # Simple echo or process
             response = {"ack": True, "received": data}
             await manager.send_personal_message(response, client_id)
-            
+
     except WebSocketDisconnect:
         manager.disconnect(client_id, zone)
         logger.info(f"Client #{client_id} left zone: {zone}")
-
